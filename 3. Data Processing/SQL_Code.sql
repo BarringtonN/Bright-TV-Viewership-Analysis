@@ -2,12 +2,10 @@
 --Viewing the User Profile and Viewership Tables
 ----------------------------------------------------
 SELECT *
-FROM workspace.bright_tv_analysis.user_profiles AS up;
+FROM workspace.bright_tv_analysis.user_profiles;
 
 SELECT *
-FROM workspace.bright_tv_analysis.viewership AS v
-LEFT JOIN workspace.bright_tv_analysis.user_profiles AS up
-ON v.UserID0 = up.UserID;
+FROM workspace.bright_tv_analysis.viewership;
 
 -------------------------------------------------
                  --DATA CLEANING
@@ -149,13 +147,28 @@ FROM workspace.bright_tv_analysis.viewership;
 CREATE TABLE viewership1
 SELECT `UserID0`
       ,`Channel2`
-      ,`userid4`
       ,TO_DATE(RecordDate2) AS RecordDate
       ,date_format(`Duration 2`, 'HH:mm:ss') AS Duration
       ,YEAR(`RecordDate`) AS Record_Year
       ,date_format(`RecordDate2`, 'HH:mm:ss') AS Time_UTC
       ,date_format(from_utc_timestamp(`Time_UTC`, 'Africa/Johannesburg'), 'HH:mm:ss') AS Time_of_Day
       FROM workspace.bright_tv_analysis.viewership;
+
+-----------------------------------------------------------------
+--Converting new column for Duration from string to integer value
+-----------------------------------------------------------------
+
+ALTER TABLE workspace.bright_tv_analysis.viewership1
+ADD COLUMN Duration_Minutes INT;
+
+UPDATE workspace.bright_tv_analysis.viewership1
+SET Duration_Minutes = CAST(
+    ROUND(
+        hour(to_timestamp(Duration, 'HH:mm:ss')) * 3600
+      + minute(to_timestamp(Duration, 'HH:mm:ss')) * 60.0
+      + second(to_timestamp(Duration, 'HH:mm:ss'))
+    ) AS INT
+);
 
 SELECT *
 FROM workspace.bright_tv_analysis.viewership1;
@@ -173,6 +186,7 @@ SELECT u.UserID
       ,v.Channel2
       ,v.RecordDate
       ,v.Duration
+      ,v.Duration_Minutes
       ,v.Record_Year
       ,v.Time_of_Day
 FROM workspace.bright_tv_analysis.user_profiles u
@@ -223,12 +237,154 @@ SELECT * ,
         WHEN date_format(Time_of_Day, 'HH:mm:ss') BETWEEN '22:00:00' AND '23:59:59' THEN 'Late Night'       
         ELSE 'Unknown'
     END AS Time_Period,
-  
     CASE
           WHEN Dayname(RecordDate) IN ('Sun', 'Sat') THEN 'Weekend'
           ELSE 'Weekday'
       END AS Day_Classification    
+
+      
 FROM workspace.bright_tv_analysis.users_viewership;
+
+------------------------------------------------
+--Checking the Date Range
+-------------------------------------------------
+---When was the start of data collection?
+SELECT MIN(RecordDate) AS min_date 
+FROM workspace.bright_tv_analysis.users_viewership;
+-- Data was collected from this date 2016-01-01
+
+---When was the last data collected?
+SELECT MAX(RecordDate) AS latest_date 
+FROM workspace.bright_tv_analysis.users_viewership;
+-- Data was collected from this date 2016-03-31
+--The duration of the data spans across 3 months
+
+--------------------------------------------------
+--How many registered viewers were in this survey?
+--------------------------------------------------
+SELECT COUNT(DISTINCT UserID)
+      ,COUNT(DISTINCT Channel2)
+FROM workspace.bright_tv_analysis.users_viewership;
+-- 5375 TV viewers
+
+---------------------------------------------------
+--What are the top 5 most watched channels?
+---------------------------------------------------
+SELECT DISTINCT Channel2
+      ,COUNT(DISTINCT UserID) AS Total_Viewers
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 IS NOT NULL
+AND Channel2 != 'Break in transmission'
+GROUP BY Channel2
+ORDER BY Total_Viewers DESC
+LIMIT 5;
+--Most watched channels are Supersport Live Events,ICC Cricket World Cup 2011
+--Channel O,SuperSport Blitz and Trace TV
+
+---------------------------------------------------
+--What are the 5 least watched channels?
+---------------------------------------------------
+SELECT DISTINCT Channel2
+      ,COUNT(DISTINCT UserID) AS Total_Viewers
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 IS NOT NULL
+AND Channel2 != 'Break in transmission'
+GROUP BY Channel2
+ORDER BY Total_Viewers ASC
+LIMIT 5;
+--Least watched channels are Live on SuperSport, Wimbledon
+-- Sawsee, SuperSport Live Events and MK
+
+--Updating the entry SuperSport Live Events to Supersport Live Events
+
+UPDATE workspace.bright_tv_analysis.viewership1
+SET `Channel2` = REPLACE (`Channel2`,'SuperSport Live Events','Supersport Live Events')
+WHERE `Channel2` = 'SuperSport Live Events';
+
+---------------------------------------------------
+--What are the 5 least watched channels?
+---------------------------------------------------
+SELECT DISTINCT Channel2
+      ,COUNT(DISTINCT UserID) AS Total_Viewers
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 IS NOT NULL
+AND Channel2 != 'Break in transmission'
+GROUP BY Channel2
+ORDER BY Total_Viewers ASC
+LIMIT 5;
+
+SELECT DISTINCT Channel2
+      ,COUNT(DISTINCT UserID) AS Total_Viewers
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 IS NOT NULL
+AND Channel2 != 'Break in transmission'
+GROUP BY Channel2
+ORDER BY Total_Viewers ASC
+LIMIT 5;
+--Least watched channels are therefore Live on SuperSport, Wimbledon
+-- Sawsee, MK and kykNET
+
+------------------------------------------------------------
+--Identifying number of transmission breakdowns per province
+------------------------------------------------------------
+SELECT PROVINCE,
+       COUNT(Channel2) AS Transmission_Breakdowns
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 LIKE '%Break%'
+GROUP BY PROVINCE
+ORDER BY Transmission_Breakdowns DESC;
+--Gauteng and Western Cape recorded the highest breaks in transmission
+
+------------------------------------------------------------
+--Which periods experience most transmission breakdowns in 
+--Gauteng and Western Cape?
+------------------------------------------------------------
+SELECT Province
+      ,COUNT(Channel2)
+       ,
+        CASE
+          WHEN Dayname(RecordDate) IN ('Sun', 'Sat') THEN 'Weekend'
+          ELSE 'Weekday'
+      END AS Day_Classification 
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 LIKE '%Break%' AND Province IN ('Gauteng','Western Cape')
+GROUP BY Province
+        ,Day_Classification;
+--Most transmission breakdowns happen during Weekdays
+
+------------------------------------------------------------
+--Identifying number of transmission breakdowns per province
+------------------------------------------------------------
+SELECT PROVINCE,
+       COUNT(Channel2)
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Channel2 LIKE '%Break%'
+GROUP BY PROVINCE;
+--Gauteng and Western Cape experience the highest transmission breakdowns
+
+------------------------------------------------------------
+-- Which race watches TV the most?
+------------------------------------------------------------
+SELECT Race
+      ,COUNT(Race) AS Number_of_People
+FROM workspace.bright_tv_analysis.users_viewership
+WHERE Race != 'Unknown'
+GROUP BY Race
+ORDER BY Number_of_People DESC;
+--The race with the highest Bright TV viewership is Black people.
+
+----------------------------------------------------------------------
+--Which channels have viewers watching them for longer hours?
+---------------------------------------------------------------------
+
+SELECT Channel2
+      ,ROUND(SUM(unix_timestamp(to_timestamp(Duration, 'HH:mm:ss'))/3600)) AS Total_Duration_Hours
+      ,ROUND(MAX(unix_timestamp(to_timestamp(Duration, 'HH:mm:ss'))/60)) AS Max_Duration_Minutes
+      ,ROUND(AVG(unix_timestamp(to_timestamp(Duration, 'HH:mm:ss'))/60)) AS Mean_Duration_Minutes
+FROM workspace.bright_tv_analysis.users_viewership
+GROUP BY Channel2
+ORDER BY Max_Duration_Minutes DESC;
+---Sports and Music channels are watched for longer time durations. ICC World Cup 2011 boosted viewership
 
 
 
