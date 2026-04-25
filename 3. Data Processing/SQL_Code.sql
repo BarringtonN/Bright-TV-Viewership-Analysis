@@ -208,18 +208,18 @@ FROM workspace.bright_tv_analysis.users_viewership;
 SELECT * , 
       
     CASE
-        WHEN age BETWEEN 0 AND 6 THEN 'Early_Childhood (0–6)'
-        WHEN age BETWEEN 6 AND 12 THEN 'School_Age (6–12)'
-        WHEN age BETWEEN 13 AND 18 THEN 'Teenagers (13–17)'
-        WHEN age BETWEEN 19 AND 24 THEN 'Youth (18–24)'
-        WHEN age BETWEEN 25 AND 34 THEN 'Young Adults (25–34)'
-        WHEN age BETWEEN 35 AND 44 THEN 'Mid Adults (35–44)'
-        WHEN age BETWEEN 45 AND 54 THEN 'Mature Adults (45–54)'
-        WHEN age BETWEEN 55 AND 59 THEN 'Pre-Seniors (55–64)'
-        WHEN age BETWEEN 60 AND 74 THEN 'Young Seniors (65–74)'
-        WHEN age BETWEEN 75 AND 84 THEN 'Seniors (75–84)'
-        WHEN age BETWEEN 85 AND 99 THEN 'Elderly (85–99)'
-        WHEN age BETWEEN 100 AND 115 THEN 'Centenarians (100–115)'
+        WHEN age BETWEEN 0 AND 6 THEN 'Early_Childhood'
+        WHEN age BETWEEN 6 AND 12 THEN 'School_Age'
+        WHEN age BETWEEN 13 AND 18 THEN 'Teenagers'
+        WHEN age BETWEEN 19 AND 24 THEN 'Youth'
+        WHEN age BETWEEN 25 AND 34 THEN 'Young Adults'
+        WHEN age BETWEEN 35 AND 44 THEN 'Mid Adults'
+        WHEN age BETWEEN 45 AND 54 THEN 'Mature Adults'
+        WHEN age BETWEEN 55 AND 59 THEN 'Pre-Seniors'
+        WHEN age BETWEEN 60 AND 74 THEN 'Young Seniors'
+        WHEN age BETWEEN 75 AND 84 THEN 'Seniors'
+        WHEN age BETWEEN 85 AND 99 THEN 'Elderly'
+        WHEN age BETWEEN 100 AND 115 THEN 'Centenarians'
         ELSE 'Unknown'
     END AS Age_Category
     ,
@@ -385,6 +385,10 @@ FROM workspace.bright_tv_analysis.users_viewership
 GROUP BY Channel2
 ORDER BY Max_Duration_Minutes DESC;
 ---Sports and Music channels are watched for longer time durations. ICC World Cup 2011 boosted viewership
+
+
+SELECT *
+FROM workspace.bright_tv_analysis.viewership1
 
 
 
